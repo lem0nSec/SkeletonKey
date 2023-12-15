@@ -155,11 +155,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="SkeletonKey.c" />
-    <ClCompile Include="Skel_utils.c" />
+    <ClCompile Include="src\SkeletonKey.c" />
+    <ClCompile Include="src\Skel_utils.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SkeletonKey.h" />
+    <ClInclude Include="src\SkeletonKey.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
