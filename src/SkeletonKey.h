@@ -45,6 +45,17 @@ typedef struct _SK_MODULE_INFORMATION
 	DWORD SizeOfImage;
 } SK_MODULE_INFORMATION, * PSK_MODULE_INFORMATION;
 
+typedef  enum _NETLOGON_LOGON_INFO_CLASS
+{
+	NetlogonInteractiveInformation = 1,
+	NetlogonNetworkInformation = 2,
+	NetlogonServiceInformation = 3,
+	NetlogonGenericInformation = 4,
+	NetlogonInteractiveTransitiveInformation = 5,
+	NetlogonNetworkTransitiveInformation = 6,
+	NetlogonServiceTransitiveInformation = 7
+} NETLOGON_LOGON_INFO_CLASS;
+
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_INITIALIZE) (LPCVOID pbKey, ULONG KeySize, ULONG MessageType, PVOID* pContext);
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_ENCRYPT) (PVOID pContext, LPCVOID pbInput, ULONG cbInput, PVOID pbOutput, ULONG* cbOutput);
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_DECRYPT) (PVOID pContext, LPCVOID pbInput, ULONG cbInput, PVOID pbOutput, ULONG* cbOutput);
