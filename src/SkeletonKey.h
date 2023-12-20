@@ -29,7 +29,7 @@
 
 #define KERB_ETYPE_RC4_HMAC_NT				23
 #define STATUS_INSUFFICIENT_RESOURCES		((NTSTATUS)0xC000009AL)     // ntsubauth
-#define STATUS_DS_NO_ATTRIBUTE_OR_VALUE		((NTSTATUS)0xC00002A1L)
+//#define STATUS_DS_NO_ATTRIBUTE_OR_VALUE		((NTSTATUS)0xC00002A1L)
 
 typedef struct _SK_FUNCTION_PTR
 {
@@ -38,6 +38,12 @@ typedef struct _SK_FUNCTION_PTR
 	PVOID FakePtr;
 	PVOID Ptr;
 } SK_FUNCTION_PTR, * PSK_FUNCTION_PTR;
+
+typedef struct _SK_MODULE_INFORMATION
+{
+	LPVOID dllBase;
+	DWORD SizeOfImage;
+} SK_MODULE_INFORMATION, * PSK_MODULE_INFORMATION;
 
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_INITIALIZE) (LPCVOID pbKey, ULONG KeySize, ULONG MessageType, PVOID* pContext);
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_ENCRYPT) (PVOID pContext, LPCVOID pbInput, ULONG cbInput, PVOID pbOutput, ULONG* cbOutput);
@@ -72,14 +78,8 @@ typedef struct _KERB_ECRYPT {
 	PVOID unk2_null;
 } KERB_ECRYPT, * PKERB_ECRYPT;
 
-typedef struct _SK_MODULE_INFORMATION
-{
-	LPVOID dllBase;
-	DWORD SizeOfImage;
-} SK_MODULE_INFORMATION, * PSK_MODULE_INFORMATION;
-
+LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count, BOOL injectable);
 LPVOID Skel_SearchRemotePatternInLoadedModule(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern);
 BOOL Skel_GetRemoteModuleInformation(DWORD dwPid, LPWSTR mName, PSK_MODULE_INFORMATION pCryptInfo);
-LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count, BOOL injectable);
 BOOL Skel_EnableDebugPrivilege();
 DWORD Skel_ValidateLsassPid();
