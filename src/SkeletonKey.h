@@ -1,3 +1,11 @@
+/*
+* Author : Angelo Frasca Caccia (lem0nSec_)
+* Data : 21/12/2023
+* Title : SkeletonKey.h
+* Website : https://github.com/lem0nSec/SkeletonKey
+*/
+
+
 #pragma once
 
 #include <Windows.h>

@@ -1,3 +1,11 @@
+/*
+* Author : Angelo Frasca Caccia (lem0nSec_)
+* Data : 21/12/2023
+* Title : Skel_utils.c
+* Website : https://github.com/lem0nSec/SkeletonKey
+*/
+
+
 #include "SkeletonKey.h"
 
 
