@@ -64,6 +64,7 @@ typedef  enum _NETLOGON_LOGON_INFO_CLASS
 	NetlogonServiceTransitiveInformation = 7
 } NETLOGON_LOGON_INFO_CLASS;
 
+
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_INITIALIZE) (LPCVOID pbKey, ULONG KeySize, ULONG MessageType, PVOID* pContext);
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_ENCRYPT) (PVOID pContext, LPCVOID pbInput, ULONG cbInput, PVOID pbOutput, ULONG* cbOutput);
 typedef NTSTATUS(WINAPI* PKERB_ECRYPT_DECRYPT) (PVOID pContext, LPCVOID pbInput, ULONG cbInput, PVOID pbOutput, ULONG* cbOutput);
@@ -96,6 +97,12 @@ typedef struct _KERB_ECRYPT {
 	PVOID unk1_null;
 	PVOID unk2_null;
 } KERB_ECRYPT, * PKERB_ECRYPT;
+
+typedef PVOID(__cdecl* PMEMCPY) (__out_bcount_full_opt(_MaxCount) void* _Dst, __in_bcount_opt(_MaxCount) const void* _Src, __in size_t _MaxCount);
+typedef HLOCAL(WINAPI* PLOCALALLOC) (__in UINT uFlags, __in SIZE_T uBytes);
+typedef HLOCAL(WINAPI* PLOCALFREE) (__deref HLOCAL hMem);
+typedef BOOL(WINAPI* PMSVPPASSWORDVALIDATE)(LPSTR unk1, DWORD unk2, PVOID NTstruct, PLM_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5);
+typedef NTSTATUS(WINAPI* PCDLOCATECSYSTEM)(ULONG Type, PKERB_ECRYPT* ppCSystem);
 
 LPVOID Skel_ResolveFakeFunctionPointers(HANDLE hProcess, LPVOID Buffer, DWORD DataSize, PSK_FUNCTION_PTR pskFP, DWORD count, BOOL injectable);
 LPVOID Skel_SearchRemotePatternInLoadedModule(HANDLE hProcess, PSK_MODULE_INFORMATION pCryptInfo, LPCVOID uPattern, SIZE_T szPattern);

