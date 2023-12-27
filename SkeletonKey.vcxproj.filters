@@ -15,15 +15,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SkeletonKey.c">
+    <ClCompile Include="src\SkeletonKey.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Skel_utils.c">
+    <ClCompile Include="src\Skel_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SkeletonKey.h">
+    <ClInclude Include="src\SkeletonKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
