@@ -13,7 +13,7 @@ More information about the inner working of the SkeletonKey malware can be found
 
 ## Differences with the Mimikatz's implementation?
 Mimikatz's SkeletonKey version has been revisited and expanded with two major improvements. First, NTLM patching was added. For systems which are not Kerberos-enabled and use NTLM authentication, the Skeleton Key carries out the following steps:
-- Injecting a custom handler to replicate the MsvpPasswordValidate function (msv1_0.dll) in order to validate the skeleton key against the typed password if the latest does not match the original password;
-- Patching the pointer to MsvpPasswordValidate inside the Import Address Tabled to be a pointer to the custom handler;
+- Injecting a custom handler to replicate the MsvpPasswordValidate function (ntlmshared.dll) in order to validate the skeleton key against the typed password if the latest does not match the original password;
+- Patching the pointer to MsvpPasswordValidate inside the Import Address Tabled of msv1_0.dll to be a pointer to the custom handler;
 
 Second, patching of Kerberos authentication does not follow the same pathway of the Mimikatz's implementation. In particular, the RC4 fallback is not triggered by zeroing out the LSA_UNICODE_STRING struct describing the string "kerberos-newer-keys". Rather, the value EncryptionType inside the single AES128 and AES256 packages (KERB_ECRYPT struct) are patched in order for both CDLocateCSystem and SamIRetrieveMultiplePrimaryCredentials to fail when trying to retrieve pointers to these packages. Consequently, the system is forced to rely on RC4 to proceed with the authentication phase.

@@ -206,6 +206,8 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 	else
 		PRINT_ERROR(L"kdcsvc.dll not found in %d. Is it a domain controller?", processID);
 
+	SecureZeroMemory(Buffer, szFunc);
+	LocalFree(Buffer);
 	FreeLibrary(LocalCryptdllBase);
 	CloseHandle(hProcess);
 
@@ -285,6 +287,8 @@ BOOL Skel_InstallOnNtlmAuth(DWORD processID, HANDLE hProcess)
 	else
 		PRINT_ERROR(L"Heap allocation error.\n");
 			
+	SecureZeroMemory(Buffer, szFunc);
+	LocalFree(Buffer);
 	CloseHandle(hProcess);	
 
 	return status;
