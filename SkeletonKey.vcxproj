@@ -173,7 +173,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\SkeletonKey.c" />
-    <ClCompile Include="src\Skel_utils.c" />
+    <ClCompile Include="src\Skeleton_utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\SkeletonKey.h" />

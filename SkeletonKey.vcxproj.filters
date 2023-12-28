@@ -18,7 +18,7 @@
     <ClCompile Include="src\SkeletonKey.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Skel_utils.c">
+    <ClCompile Include="src\Skeleton_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

