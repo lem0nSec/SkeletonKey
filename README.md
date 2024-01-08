@@ -18,14 +18,14 @@ Modes:
 ## What is Skeleton Key?
 Skeleton Key is a malware which was found by the ![Dell SecureWorks Counter Threat Unit](https://www.secureworks.com/research/skeleton-key-malware-analysis) in 2015. This malware is an in-memory implant residing inside the lsass.exe process. It mainly tampers with the __Kerberos authentication__ mechanism by injecting a master password (skeleton key) in memory which can be used to authenticate as any user. The fun part is that the original password remains valid. To achieve this, the following steps are required:
 - Downgrading algorithm from AES128/256 to RC4;
-- Injecting custom handlers which validate the skeleton key against the typed password if the latest does not match the original password;
+- Injecting custom handlers which validate the skeleton key against the typed password if the latter does not match the original password;
 - Patching pointers to the original RC4 Initialize/Decrypt functions to be the new custom handlers.
 More information about the inner working of the SkeletonKey malware can be found ![here](https://www.virusbulletin.com/uploads/pdf/magazine/2016/vb201601-skeleton-key.pdf).
 
 ## Differences with the Mimikatz's implementation?
 The mimikatz's SkeletonKey version has been revisited and expanded with two major improvements. First, NTLM patching was added. For systems which are not Kerberos-enabled and use NTLM authentication, the Skeleton Key carries out the following steps:
 - Injecting a custom handler to replicate the MsvpPasswordValidate function (ntlmshared.dll) in order to validate the skeleton key against the typed password if the latest does not match the original password;
-- Patching the pointer to MsvpPasswordValidate inside the Import Address Tabled of msv1_0.dll to be a pointer to the custom handler;
+- Patching the pointer to MsvpPasswordValidate inside the Import Address Table of msv1_0.dll to be a pointer to the custom handler;
 
 ![](pictures/ntlm_auth.png)
 
