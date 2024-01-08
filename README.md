@@ -24,12 +24,12 @@ More information about the inner working of the SkeletonKey malware can be found
 
 ## Differences with the Mimikatz's implementation?
 The mimikatz's SkeletonKey version has been revisited and expanded with two major improvements. First, NTLM patching was added. For systems which are not Kerberos-enabled and use NTLM authentication, the Skeleton Key carries out the following steps:
-- Injecting a custom handler to replicate the MsvpPasswordValidate function (ntlmshared.dll) in order to validate the skeleton key against the typed password if the latest does not match the original password;
+- Injecting a custom handler to replicate the MsvpPasswordValidate function (ntlmshared.dll) in order to validate the skeleton key against the typed password if the latter does not match the original password;
 - Patching the pointer to MsvpPasswordValidate inside the Import Address Table of msv1_0.dll to be a pointer to the custom handler;
 
 ![](pictures/ntlm_auth.png)
 
-What happens is that lsass will call our custom MsvpPasswordValidate instead of the real version. The most relevant part of MsvpPasswordValidate is the following call to RtlCompareMemory, which indeed compares the hashed version of the password typed by the user with the hash inside the Security Account Manager (SAM) database. 
+What happens is that lsass will call our custom MsvpPasswordValidate instead of the real version. The most relevant part of MsvpPasswordValidate is the following call to RtlCompareMemory, which indeed compares the hashed version of the password typed by the user with the hash inside the Security Account Manager (SAM). 
 
 ![](pictures/compare_memory.png)
 
