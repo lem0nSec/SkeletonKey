@@ -31,7 +31,7 @@ The mimikatz's SkeletonKey version has been revisited and expanded with two majo
 
 What happens is that lsass will call our custom MsvpPasswordValidate instead of the real version. The most relevant part of MsvpPasswordValidate is the following call to RtlCompareMemory, which indeed compares the hashed version of the password typed by the user with the hash inside the Security Account Manager (SAM). 
 
-![](pictures/compare_memory.png)
+![](pictures/compare_hashes.png)
 
 The custom handler replaces the latter with the hash of the Skeleton Key.
 
