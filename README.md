@@ -23,7 +23,10 @@ Skeleton Key is a malware which was found by the [Dell SecureWorks Counter Threa
 More information about the inner working of the SkeletonKey can be found [here](https://www.virusbulletin.com/uploads/pdf/magazine/2016/vb201601-skeleton-key.pdf).
 
 ## Differences with the Mimikatz's implementation?
-The Mimikatz's SkeletonKey version has been revisited and expanded with two major improvements. First, NTLM patching was added. For systems which are not Kerberos-enabled and use NTLM authentication, the Skeleton Key carries out the following steps:
+The Mimikatz's SkeletonKey version has been revisited and expanded with two major improvements. 
+
+### NTLM Patching
+NTLM patching was added. For systems which are not Kerberos-enabled and use NTLM authentication, the Skeleton Key carries out the following steps:
 - Injecting a custom handler to replicate the MsvpPasswordValidate function (ntlmshared.dll) in order to validate the skeleton key against the typed password if the latter does not match the original password;
 - Patching the pointer to MsvpPasswordValidate inside the Import Address Table of msv1_0.dll to be a pointer to the custom handler;
 
@@ -38,7 +41,8 @@ The custom handler replaces the latter with the hash of the Skeleton Key.
 ![](pictures/compare.png)
 
 
-Second, patching of Kerberos authentication does not follow the same pathway of the Mimikatz's implementation. In particular, the RC4 fallback is not triggered by zeroing out the LSA_UNICODE_STRING struct describing the string "kerberos-newer-keys". Rather, the value EncryptionType inside the single AES128 and AES256 packages (KERB_ECRYPT struct) are patched in order for both CDLocateCSystem and SamIRetrieveMultiplePrimaryCredentials to fail when trying to retrieve pointers to these packages. Consequently, the system is forced to rely on RC4 to proceed with the authentication phase. According to Mimikatz, a KERB_ECRYPT struct describes the encryption scheme characteristics, such as pointers to functions the algorithm relies on. 'Initialize' and 'Decrypt' are always called during authentication.
+### RC4 Fallback Update
+Patching of Kerberos authentication does not follow the same pathway of the Mimikatz's implementation. In particular, the RC4 fallback is not triggered by zeroing out the LSA_UNICODE_STRING struct describing the string "kerberos-newer-keys". Rather, the value EncryptionType inside the single AES128 and AES256 packages (KERB_ECRYPT struct) are patched in order for both CDLocateCSystem and SamIRetrieveMultiplePrimaryCredentials to fail when trying to retrieve pointers to these packages. Consequently, the system is forced to rely on RC4 to proceed with the authentication phase. According to Mimikatz, a KERB_ECRYPT struct describes the encryption scheme characteristics, such as pointers to functions the algorithm relies on. 'Initialize' and 'Decrypt' are always called during authentication.
 
 
 ```c
