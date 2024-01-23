@@ -5,7 +5,7 @@ __Reproducing the Skeleton Key malware__
 As part of an autonomous research I am carrying out on the Local Security Authority Subsystem Service, Skeleton Key is a 2015 piece of malware which has particularly intrigued me. Since [Mimikatz](https://github.com/gentilkiwi/mimikatz) is the only tool I found which already covers the technique, I decided to reproduce the malware focusing on improving and adding new features.
 
 ## Usage
-Injecting the Skeleton Key inside lsass.exe is as easy as launching SkeletonKey.exe and selecting the preferred Windows authentication type to be patched.
+Injecting the Skeleton Key into lsass.exe is as easy as launching SkeletonKey.exe and selecting the preferred Windows authentication type to be patched.
 
 ```
 Usage: SkeletonKey.exe {mode}
