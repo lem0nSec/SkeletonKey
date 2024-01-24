@@ -75,3 +75,6 @@ Multiple KERB_ECRYPT structs exist sequentially, and each of them describes an a
 
 ![](pictures/aes256_patched.png)
 
+As a consequence, during authentication the system becomes reliant on RC4 (EncryptionType 0x17).
+
+![](pictures/rc4_fallback.png)
