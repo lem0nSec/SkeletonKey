@@ -42,7 +42,7 @@ The custom handler replaces the latter with the hash of the Skeleton Key.
 
 
 ### RC4 Fallback Update
-Patching of Kerberos authentication does not follow the same pathway of the Mimikatz's implementation. In particular, the RC4 fallback is not triggered by zeroing out the LSA_UNICODE_STRING struct describing the string "kerberos-newer-keys". Rather, the value EncryptionType inside the single AES128 and AES256 packages (KERB_ECRYPT struct) are patched in order for both CDLocateCSystem and SamIRetrieveMultiplePrimaryCredentials to fail when trying to retrieve pointers to these packages. Consequently, the system is forced to rely on RC4 to proceed with the authentication phase. According to Mimikatz, a KERB_ECRYPT struct describes the encryption scheme characteristics, such as pointers to functions the algorithm relies on. 'Initialize' and 'Decrypt' are always called during authentication.
+Contrary to Mimikatz, the RC4 fallback is not triggered by zeroing out the LSA_UNICODE_STRING struct describing the unicode string "kerberos-newer-keys". Rather, the value EncryptionType inside the single AES128 and AES256 packages (KERB_ECRYPT struct) are patched so that lsass is unable to retrieve pointers to these packages. Consequently, the system is forced to rely on RC4 to proceed with the authentication phase. According to Mimikatz, a KERB_ECRYPT struct describes the encryption scheme characteristics, such as pointers to functions the algorithm relies on. 'Initialize' and 'Decrypt' are always called during authentication.
 
 
 ```c
@@ -71,10 +71,15 @@ typedef struct _KERB_ECRYPT {
 } KERB_ECRYPT, * PKERB_ECRYPT;
 ```
 
-Multiple KERB_ECRYPT structs exist sequentially, and each of them describes an authentication algorith such as AES or RC4. During authentication, the system tries to retrieve a pointer to the KERB_ECRYPT struct which describes the algorithm to be used. To do this, it performs a lookup of the first value EncryptionType. Since by default the system attemps to resolve the position of AES128 and AES256. The SkeletonKey edits EncryptionType of the AES128 and AES256 KERB_ECRYPT structs to be 0xff.
+During authentication, by default the system tries to retrieve a pointer to the AES128 and AES256 KERB_ECRYPT structs by performing a lookup of their EncryptionTypes. So the SkeletonKey edits AES128 and AES256 EncryptionType values to be 0xff.
 
 ![](pictures/aes256_patched.png)
 
-As a consequence, during authentication the system becomes reliant on RC4 (EncryptionType 0x17).
+As a consequence, the system becomes reliant on RC4 (EncryptionType 0x17).
 
 ![](pictures/rc4_fallback.png)
+
+
+## References
+- https://www.virusbulletin.com/uploads/pdf/magazine/2016/vb201601-skeleton-key.pdf
+- https://github.com/gentilkiwi/mimikatz
